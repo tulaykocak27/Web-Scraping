@@ -1,0 +1,70 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import os
+from itertools import zip_longest
+
+HEADERS = {
+    'User-Agent': '***'
+}
+#FOR FISRT TEN PAGES
+link_details = []
+for page_num in range(1, 11):
+    URL = f'https://www.***WEBSITE***.com/dizustu-bilgisayar?page={page_num}'
+    results = requests.get(URL, headers=HEADERS)
+    src = results.text
+
+    soup = BeautifulSoup(src, 'html.parser')
+    image_tags = soup.find_all('img', {'data-src': True, 'alt': True})
+
+    for tag in image_tags[:33]:
+        image_src = tag['data-src']
+        if not image_src.startswith('https:'):
+            image_src = 'https:' + image_src
+        image_name = tag['alt']
+        image_name = "".join(x for x in image_name if x.isalnum() or x in {' ', '_', '-', '.'})
+        response = requests.get(image_src)
+        #with open(os.path.join('imagess', image_name + '.jpg'), 'wb') as f:
+            #f.write(response.content)
+
+    print('Images downloaded successfully!')
+
+    for i, link in enumerate(soup.find_all("a", class_="link-detail")):
+        if 0 <= i <= 31:
+            href = link.get("href")
+            each_of_link = 'https://www.cimri.com' + href
+            if each_of_link:
+                link_details.append(each_of_link)
+
+product_names = []
+product_prices = []
+product_brands = []
+product_image_urls = []
+
+for url in link_details:
+    response = requests.get(url, headers=HEADERS)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    product_name = soup.find('h1', {'class': 's1wytv2f-2 jTAVuj'})
+    product_price = soup.find('span', {'class': 's1wl91l5-4 cBVHJG'})
+    product_brand = soup.find('a', {'class': 's1wytv2f-3 gxVdZH'})
+
+    if product_name:
+        product_names.append(product_name.text.strip())
+    else:
+        product_names.append("N/A")
+
+    if product_price:
+        product_prices.append(product_price.text.strip())
+    else:
+        product_prices.append("N/A")
+
+    if product_brand:
+        product_brands.append(product_brand.text.strip())
+    else:
+        product_brands.append("N/A")
+
+
+df = pd.DataFrame(list(zip_longest(product_names, product_prices, product_brands)),
+                  columns=["Product Name", "Product Brand", "Product Price"])
+df.to_csv("laptopsfirst10pages_info.csv", index=False)
